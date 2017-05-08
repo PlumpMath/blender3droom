@@ -23,21 +23,28 @@
 # filename = "/path/to/directory/blender_room_mockup.py"
 # exec(compile(open(filename).read(), filename, 'exec'))
 
-
 import bpy
 from mathutils import Vector
 import random
 import os
-
-
+import uuid
+import sys
+sys.path.append('/home/ashok/.virtualenvs/machine_learning/lib/python3.5/site-packages')
+import psycopg2
+conn_string = "host='localhost' dbname='mockup' user='ashok' password=''"
+conn = psycopg2.connect(conn_string)
+cursor = conn.cursor()
 class ThreeDimRoom:
-
-    path_to_obj_dir = '/home/ashok/project/mockupStudio/blender3droom/objects/'
-    path_to_save_image_dir = '/home/ashok/project/mockupStudio/blender3droom/images/my_blender_room001.png'
-
+    path_to_obj_dir = '/home/ashok/project/mockupStudio/blender3droom1/objects/'
     # initialize length, breadth and height of the room, and scene context
     def __init__(self, length, breadth, height):
-        self.length = length
+        # database connection and fetch record from the table for the objects location
+
+        cursor.execute("select length from room")
+        records = cursor.fetchall()
+        for r in records:
+            self.length = r[0]
+        # self.length = length
         self.breadth = breadth
         self.height = height
         self.scene = bpy.context.scene
@@ -46,33 +53,30 @@ class ThreeDimRoom:
     # room created with archimesh addon
     def create_room(self):
         bpy.ops.mesh.archimesh_room()
-        bpy.context.object.RoomGenerator[0].wall_num = 4
-        bpy.context.object.RoomGenerator[0].walls[0].w = self.length
+        bpy.context.object.RoomGenerator[0].wall_num = 3
+        bpy.context.object.RoomGenerator[0].walls[0].w = -self.length
         bpy.context.object.RoomGenerator[0].walls[1].w = self.breadth
-        bpy.context.object.RoomGenerator[0].walls[2].w = -self.length
-        bpy.context.object.RoomGenerator[0].walls[3].w = -self.breadth
+        bpy.context.object.RoomGenerator[0].walls[2].w = self.length
+        #bpy.context.object.RoomGenerator[0].walls[3].w = -self.breadth
         bpy.context.object.RoomGenerator[0].wall_width = 0.2
 
         bpy.context.object.RoomGenerator[0].room_height = self.height
         bpy.context.object.RoomGenerator[0].ceiling = True
         bpy.context.object.RoomGenerator[0].floor = True
 
-
         # add textures to the wall
         self.create_texture('wall_texture3', '~/Downloads/magnum_beige_03.jpg')
 
-        bpy.data.objects['Room'].location = (-8,-8,0)
+        bpy.data.objects['Room'].location = (4.0,-8.0,0)
         bpy.context.scene.objects.active = bpy.data.objects['Floor']
         self.create_texture('floor_texture', '~/Downloads/wood_floor.jpg')
 
         # add window
         bpy.ops.mesh.archimesh_window()
         bpy.context.object.WindowObjectGenerator[0].r = 90
-        #bpy.context.space_data.show_only_render = True
-        bpy.data.objects['Window_Group'].location = (-9.76635, -1.52079, 4.30536)
-        # (-8.00002, 0.24554, 3.22902)
-        # (-6.616235733032227, 4.075611114501953, 2.9360086917877197)
-
+        bpy.data.objects['Window_Group'].location = (-12.0, -1.1, 2.0)
+        bpy.data.objects['Window_Group'].scale = (2.0, 2.0, 2.0)
+        bpy.ops.object.transform_apply(scale=True)
 
     def create_texture(self, name, texture):
         # Load image file. Change here if the snippet folder is
@@ -109,13 +113,20 @@ class ThreeDimRoom:
         me.materials.append(mat)
 
     def save_as_image(self):
-        bpy.data.scenes["Scene"].render.filepath = self.path_to_save_image_dir
+        image_path = '/home/ashok/project/mockupStudio/images/{}{}'.format(uuid.uuid4(), '.png')
+        bpy.data.scenes["Scene"].render.filepath = image_path #self.path_to_save_image_dir
         bpy.ops.render.render(write_still=True)
 
 
-    def main(self):
+    def main(self, pattern_id):
         # the main program starts here
         self.create_room()
+        cursor.execute('select * from "Configuration" where config_id=%d' % config_id)
+        records = cursor.fetchall()
+
+        for r in records:
+            if r[2] == sofa:
+
 
         # import objects from the directory
         file_list = sorted(os.listdir(self.path_to_obj_dir))
@@ -128,8 +139,8 @@ class ThreeDimRoom:
             # make sure to get all imported objects
             imported_objects = bpy.context.selected_objects[:]
             # define locations statically for each object
-            locations_bed = [(-5.0, 3.0, 0.0)]
-            locations_sofa = [(-4.5, -2.5, 0.0)]
+            locations_bed = [(-5.0, 1.0, 0.0)]
+            locations_sofa = [(-6.0, -5.0, 0.0)]
             locations_leather_sofa =  [(7.0, 9.0, 0.0)]
 
             # iterate through all objects
@@ -149,14 +160,25 @@ class ThreeDimRoom:
                 if imp_objects.name.startswith('bed') or imp_objects.name.startswith('mattress') \
                         or imp_objects.name.startswith('Colcha'):
                     imp_objects.location = locations_bed[0]
+                    imp_objects.scale = (2.0, 2.0, 2.0)
+                    bpy.ops.object.transform_apply(scale=True)
+
+                elif imp_objects.name.startswith('tack'):
+                    imp_objects.location = locations_leather_sofa[0]
+                    imp_objects.scale = (1.5, 1.5, 1.5)
+                    bpy.ops.object.transform_apply(scale=True)
 
                 elif imp_objects.name.startswith('cushion') or imp_objects.name.startswith('big_cushion') \
                         or imp_objects.name.startswith('legs') or imp_objects.name.startswith('sofa_Cube'):
                     imp_objects.location = locations_sofa[0]
                     imp_objects.rotation_euler = (1.57, -0.0, 1.47)
+                    imp_objects.scale = (0.75, 0.75, 0.75)
+                    bpy.ops.object.transform_apply(scale=True)
 
-                elif imp_objects.name.startswith('tack'):
-                    imp_objects.location = locations_leather_sofa[0]
+                elif imp_objects.name.startswith('Cube'):
+                    imp_objects.location = (2.0,3.0,0.0)
+                    imp_objects.scale = (0.5, 0.5, 0.5)
+                    bpy.ops.object.transform_apply(scale=True)
 
                 else:
                     #imp_objects.location = locations_clear_sofa[0]
@@ -171,34 +193,36 @@ class ThreeDimRoom:
                 # if there is no material append it
                 else:
                     imp_objects.data.materials.append(mat)
-
-
-
-                    # IMPORT objects and set locations ends here
+        # IMPORT objects and set locations ends here
 
         # Add light and set
         lamp_data = bpy.data.lamps.new(name="lamp", type='POINT')
         lamp_object = bpy.data.objects.new(name="Lampicka", object_data=lamp_data)
         self.scene.objects.link(lamp_object)
-        lamp_object.location = (8.0, -6.0, 4.0)
+        lamp_object.location = (0.32, -2.94, 4.37)
 
         # Set the camera
-        cam_data = bpy.data.cameras.new(name="cam")
-        cam_ob = bpy.data.objects.new(name="Kamera", object_data=cam_data)
-        self.scene.objects.link(cam_ob)
-        cam_ob.location = (16.562541961669922, -4.458632469177246, 5.731258392333984)
-        cam_ob.rotation_euler = (1.372640609741211, -0.006977591663599014, 1.3455743789672852)
+        #cam_data = bpy.data.cameras.new(name="cam")
+        #cam_ob = bpy.data.objects.new(name="Kamera", object_data=cam_data)
+        #self.scene.objects.link(cam_ob)
+        bpy.data.objects['Camera'].location = (13.65, -3.70, 5.63)
+        bpy.data.objects['Camera'].rotation_euler = (1.37, -0.00, 1.35)
 
         # save the image in the defined path
-        #self.save_as_image()
+        self.save_as_image()
 
+        #clear the whole scene for next image
+        for ob in bpy.context.scene.objects:
+            if ob.name == 'Camera':
+                ob.select = False
+            else:
+                ob.select = True
+        # bpy.ops.object.delete()
 
 if __name__ == "__main__":
     # main room
     r = ThreeDimRoom(16.0, 12.0, 6.0)
-    r.main()
+    r.main(1)
+    # for i in range(50):
+    #     r.main()
 
-
-
-# vector((-14.49596118927002, -1.1675033569335938, 5.239290237426758))
-# euler((4.544684410095215, -3.194756269454956, 1.574481725692749), 'XYZ')
